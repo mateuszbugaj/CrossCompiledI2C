@@ -1,0 +1,6 @@
+add_executable(DesktopDemo DesktopDemo.cpp)
+target_include_directories(DesktopDemo PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(DesktopDemo HAL)
+target_link_libraries(DesktopDemo I2C)
+target_compile_definitions(I2C PRIVATE DESKTOP=1)
+target_compile_definitions(HAL PRIVATE DESKTOP=1)
