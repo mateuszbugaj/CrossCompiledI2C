@@ -1,7 +1,0 @@
-if(TARGET_PLATFORM STREQUAL "AVR")
-  add_avr_library(HAL HAL.c)
-  avr_target_include_directories(HAL PUBLIC ${CMAKE_SOURCE_DIR}/include)
-elseif(TARGET_PLATFORM STREQUAL "DESKTOP")
-  add_library(HAL HAL.c)
-  target_include_directories(HAL PUBLIC ${CMAKE_SOURCE_DIR}/include)
-endif()

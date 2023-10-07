@@ -7,8 +7,7 @@ project(
 
 message("C compiler: " ${CMAKE_C_COMPILER} ", C++ compiler: " ${CMAKE_CXX_COMPILER})
 
-add_subdirectory(lib/HAL)
-add_subdirectory(lib/I2C)
+add_subdirectory(lib/GenericI2C)
 
 if(TARGET_PLATFORM STREQUAL "DESKTOP")
   message("Building for desktop")

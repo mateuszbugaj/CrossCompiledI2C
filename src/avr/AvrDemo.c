@@ -1,8 +1,8 @@
 #include <avr/io.h>
 #include <avr/power.h>
 #include <util/delay.h>
-#include <HAL/HAL.h>
-#include <I2C/I2C.h>
+#include <I2C.h>
+
 
 /*
 +--------+
@@ -21,13 +21,13 @@ int main(void) {
 
   HAL_Pin sclPin = { &PORTB, 5, PULLUP_ENABLE };
 
-  I2C_config i2c_config = {
+  I2C_Config i2c_config = {
     .addr = 51,
     .loggingLevel = 4,
-    .sclPin = &sclPin
+    .sclOutPin = &sclPin
   };
 
-  I2C_setup(&i2c_config);
+  I2C_init(&i2c_config);
   while (1) {
     HAL_pinWrite(&led, HIGH); 
     _delay_ms(500);
