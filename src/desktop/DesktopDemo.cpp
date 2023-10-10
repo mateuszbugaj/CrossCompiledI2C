@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include <signal_logger.hpp>
+
 #include <I2C_HAL.h>
 extern "C" {
   #include <I2C.h>
@@ -17,87 +17,83 @@ void print_num(uint8_t num){
   std::cout << int(num);
 }
 
-std::vector<HAL_PinLevel> tokenize(std::string s, std::string delimiter){
-  size_t pos = 0;
-  std::string token;
-  std::vector<HAL_PinLevel> result;
-
-  while ((pos = s.find(delimiter)) != std::string::npos) {
-      token = s.substr(0, pos);
-      result.push_back(token == "0" ? HAL_PinLevel::LOW : HAL_PinLevel::HIGH);
-      s.erase(0, pos + delimiter.length());
-  }
-
-  result.push_back(s == "0" ? HAL_PinLevel::LOW : HAL_PinLevel::HIGH);
-
-  return result;
-}
-
-int main(){
+int main(int argc, char** argv){
   std::cout << "DesktopDemo Start.\n";
-  HAL_setLoggingCallback(SL_logPinState);
 
-  bool roleSelected = false;
   I2C_Role role = I2C_Role::MASTER;
-  while(!roleSelected){
-    std::cout << "Select role:\n1) Master\n2) Slave\n> ";
-    int roleSelection;
-    std::cin >> roleSelection;
-    roleSelected = true;
-    if(roleSelection == 1){
-      role = I2C_Role::MASTER;
-    } else if(roleSelection == 2){
-      role = I2C_Role::SLAVE;
-    } else {
-      std::cout << "404 Role Not Found.\n";
-      roleSelected = false;
+
+  // Process command-line arguments
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg.substr(0, 7) == "--role=") {
+      char roleValue = arg[7];
+      if (roleValue == '1') {
+        role = I2C_Role::MASTER;
+      } else if (roleValue == '2') {
+        role = I2C_Role::SLAVE;
+      } else {
+        std::cerr << "Invalid role value. Use --role=1 for MASTER or --role=2 for SLAVE." << std::endl;
+        return 1; // exit with error
+      }
     }
   }
 
   HAL_Pin sclOutPin, sdaOutPin, sclInPin, sdaInPin;
+  std::string roleString = role == I2C_Role::MASTER ? "MASTER" : "SLAVE";
+
+  HAL_registerPin(&sclOutPin, (roleString + "_SCL_OUT").c_str());
+  HAL_registerPin(&sdaOutPin, (roleString + "_SDA_OUT").c_str());
+
+  HAL_registerPin(&sclInPin, (roleString + "_SCL_IN").c_str());
+  HAL_registerPin(&sdaInPin, (roleString + "_SDA_IN").c_str());
 
   I2C_Config i2c_config {
     .addr = role == I2C_Role::MASTER ? (uint8_t) 51 : (uint8_t) 52,
     .loggingLevel = 4,
     .role = role,
-    .sclOutPin = pinSetup(&sclOutPin, nullptr, 1, HAL_PullupConfig::PULLUP_ENABLE),
-    .sdaOutPin = pinSetup(&sdaOutPin, nullptr, 2, HAL_PullupConfig::PULLUP_ENABLE),
-    .sclInPin = pinSetup(&sclInPin, nullptr, 3, HAL_PullupConfig::PULLUP_ENABLE),
-    .sdaInPin = pinSetup(&sdaInPin, nullptr, 4, HAL_PullupConfig::PULLUP_ENABLE),
+    .sclOutPin = HAL_pinSetup(&sclOutPin, nullptr, 1, HAL_PullupConfig::PULLUP_ENABLE),
+    .sdaOutPin = HAL_pinSetup(&sdaOutPin, nullptr, 2, HAL_PullupConfig::PULLUP_ENABLE),
+    .sclInPin = HAL_pinSetup(&sclInPin, nullptr, 3, HAL_PullupConfig::PULLUP_ENABLE),
+    .sdaInPin = HAL_pinSetup(&sdaInPin, nullptr, 4, HAL_PullupConfig::PULLUP_ENABLE),
     .print_str = &print_str,
     .print_num = &print_num,
   };
 
   I2C_init(&i2c_config);
 
-  HAL_pinWrite(&sclOutPin, HAL_PinLevel::HIGH);
+  while(true){
+    // read user input from stdin and service commands for writing to the pins and reading from the pins
+    std::cout << "> ";
+    std::string input;
+    std::getline(std::cin, input);
 
-  // std::cout << "Reading the input file.\n";
-  // std::ifstream file("src/desktop/testInput.txt");
-  // if(!file.is_open()){
-  //   std::cerr << "Failed to open the file.\n";
-  //   return 1;
-  // }
-
-  // std::string line;
-  // std::cout << "SCL|SDA\n";
-  // while(std::getline(file, line)){
-  //   std::vector<HAL_PinLevel> signals = tokenize(line, " ");
-
-  //   for(int i = 0; i < signals.size(); i++){
-  //     std::cout << (signals[i] == HAL_PinLevel::LOW ? " 0 " : " 1 ");
-      
-  //     if(i != signals.size() - 1){
-  //       std::cout << "|";
-  //     }
-  //   }
-  //   std::cout << "\n";
-
-  // }
-
-  // std::cout << "Finished reading the input file.\n";
-
-
+    if(input == "exit"){
+      break;
+    } else if(input == "read scl"){
+      std::cout << (HAL_pinRead(&sclInPin) == HIGH ? "HIGH" : "LOW") << "\n";
+    } else if(input == "read sda"){
+      std::cout << (HAL_pinRead(&sdaInPin) == HIGH ? "HIGH" : "LOW") << "\n";
+    } else if(input == "write scl HIGH"){
+      HAL_pinWrite(&sclOutPin, HIGH);
+    } else if(input == "write scl LOW"){
+      HAL_pinWrite(&sclOutPin, LOW);
+    } else if(input == "write sda HIGH"){
+      HAL_pinWrite(&sdaOutPin, HIGH);
+    } else if(input == "write sda LOW"){
+      HAL_pinWrite(&sdaOutPin, LOW);
+    } else {
+      std::cout << "Invalid input\n";
+      std::cout << "Valid inputs are:\n";
+      std::cout << "exit\n";
+      std::cout << "read scl\n";
+      std::cout << "read sda\n";
+      std::cout << "write scl HIGH\n";
+      std::cout << "write scl LOW\n";
+      std::cout << "write sda HIGH\n";
+      std::cout << "write sda LOW\n";
+    }
+  }
+  
 
   return 0;
 }
