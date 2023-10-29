@@ -49,7 +49,7 @@ void print_str(char str[]){
   std::cout << strCopy;
 }
 
-void print_num(uint8_t num){
+void print_num(uint16_t num){
   std::string filename = std::string("output/") + (role == I2C_Role::MASTER ? "master" : "slave") + "_log.txt";
   std::ofstream ofs(filename, std::ios::app);
   if(ofs.is_open()){
