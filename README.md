@@ -36,9 +36,14 @@ Other files in the `output/` directory such as `logic_analyzer_snapshot.txt`, `m
 ## AVR platform
 
 ```
-cmake -S . -B build-avr/ -DTARGET_PLATFORM=AVR -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake
+cmake -S . -B build-avr/ -DTARGET_PLATFORM=AVR -DCMAKE_TOOLCHAIN_FILE=cmake/avr/avr-toolchain.cmake
 cmake --build build-avr/
 sudo make -C build-avr/ upload_AvrDemo
 ```
 
 ## STM32 platform
+```
+cmake -S . -B build-stm32/ -DTARGET_PLATFORM=STM32 -DCMAKE_TOOLCHAIN_FILE=cmake/stm32/stm32-toolchain.cmake
+cmake --build build-stm32/
+sudo make -C build-stm32/ Stm32Demo.bin_upload
+```
