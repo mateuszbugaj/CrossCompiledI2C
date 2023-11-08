@@ -46,3 +46,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE NEVER)
 function(add_bin_from_elf bin elf)
   add_custom_target(${bin} ALL ${CMAKE_OBJCOPY} -Obinary ${elf} ${bin} DEPENDS ${elf})
 endfunction(add_bin_from_elf)
+
+include(${CMAKE_CURRENT_LIST_DIR}/libopencm3.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/st-link.cmake)

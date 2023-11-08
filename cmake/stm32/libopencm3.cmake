@@ -1,10 +1,14 @@
+if(TARGET libopencm3)
+  return()
+endif()
+
 # Make sure that git submodule is initialized and updated
-if (NOT EXISTS "${CMAKE_SOURCE_DIR}/lib/libopencm3/Makefile")
+if (NOT EXISTS "/home/mat/CrossCompiledI2C/lib/libopencm3/Makefile")
   message(FATAL_ERROR "libopencm3 submodule not found. Initialize with 'git submodule update --init' in the source directory")
 endif()
 
 # Add a custom target to compile libopencm3
-set(LIBOPENCM3_DIR ${CMAKE_SOURCE_DIR}/lib/libopencm3)
+set(LIBOPENCM3_DIR /home/mat/CrossCompiledI2C/lib/libopencm3)
 add_custom_target(
   libopencm3
   ALL

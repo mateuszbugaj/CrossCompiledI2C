@@ -1,7 +1,3 @@
-include(${CMAKE_SOURCE_DIR}/cmake/stm32/blue-pill.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/stm32/libopencm3.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/stm32/st-link.cmake)
-
 add_executable(
   Stm32Demo
   Stm32Demo.cpp
@@ -10,8 +6,11 @@ add_dependencies(
   Stm32Demo
   libopencm3
 )
+add_library(USART USART.cpp USART.hpp)
 target_link_libraries(
   Stm32Demo
+  USART
+  GenericI2C
   ${LIBOPENCM3_BLUEPILL_LIBRARIES}
 )
 add_bin_from_elf(
