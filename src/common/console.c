@@ -20,8 +20,6 @@ typedef struct {
   CommandHandler handler;
 } Command;
 
-#ifndef LIMITED_CONSOLE
-
 void handleGetRole(const char* args) {
   console_print(i2c_cfg->role == MASTER ? "MASTER" : "SLAVE");
   console_print(NEW_LINE);
@@ -30,9 +28,9 @@ void handleGetRole(const char* args) {
 void handleSetRole(const char* args) {
   char role[10];
   getArg(args, role, 0);
-  if (strcmp(role, "MASTER") == 0) {
+  if (strcmp(role, "master") == 0) {
     i2c_cfg->role = MASTER;
-  } else if (strcmp(role, "SLAVE") == 0) {
+  } else if (strcmp(role, "slave") == 0) {
     i2c_cfg->role = SLAVE;
   }
 }
@@ -102,11 +100,12 @@ Command setCommandTable[] = {
   {"logging_level", handleSetLoggingLever}
 };
 
-#endif
-
 void handleWriteByte(const char* args) {
   char byte[5];
-  getArg(args, byte, 10);
+  getArg(args, byte, 0);
+  console_print("B:");
+  console_print(byte);
+  console_print(NEW_LINE);
   int byteInt = atoi(byte);
   if (byteInt < 0 || byteInt > 255) {
     return;
@@ -126,9 +125,9 @@ void handleWriteAddress(const char* args) {
     return;
   }
 
-  if (strcmp(direction, "read") == 0) {
+  if (strcmp(direction, "r") == 0) {
     I2C_writeAddress(addressInt, READ);
-  } else if (strcmp(direction, "write") == 0) {
+  } else if (strcmp(direction, "w") == 0) {
     I2C_writeAddress(addressInt, WRITE);
   }
 }
@@ -143,7 +142,7 @@ void handleWriteStopCondition(const char* args) {
 
 Command writeCommandTable[] = {
   {"byte", handleWriteByte},
-  {"address", handleWriteAddress},
+  {"addr", handleWriteAddress},
   {"start", handleWriteStartCondition},
   {"stop", handleWriteStopCondition}
 };
@@ -181,7 +180,6 @@ void console_parse(const char* instruction) {
   Command* commandTable;
   int commandTableSize;
 
-#ifndef LIMITED_CONSOLE
   if(strcmp(command, "get") == 0){
     commandTable = getCommandTable;
     commandTableSize = sizeof(getCommandTable) / sizeof(Command);
@@ -194,14 +192,6 @@ void console_parse(const char* instruction) {
   } else {
     return;
   }
-#else
-  if(strcmp(command, "write") == 0){
-    commandTable = writeCommandTable;
-    commandTableSize = sizeof(writeCommandTable) / sizeof(Command);
-  } else {
-    return;
-  }
-#endif
 
   bool found = false;
   for (int i = 0; i < commandTableSize; ++i) {

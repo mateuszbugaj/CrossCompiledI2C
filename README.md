@@ -1,8 +1,10 @@
 # Cross compiled I2C
 A demo/development platform for I2C protocol. </br>
-It can be run on a desktop by running two instances of the executable that communicate with each other using a JSON file or it can be build and uploaded to run on the AVR/STM32 microcontroller. </br>
-Each target platform is using the same version of the [I2C library](https://github.com/mateuszbugaj/GenericI2C) by compiling the appropriate HAL implementation.
+It can be run on a desktop by starting two instances of the executable that communicate with each other using a JSON file or it can be build and uploaded to run on the AVR/STM32 microcontrollers. </br>
+Each target platform is using the same version of the [I2C library](https://github.com/mateuszbugaj/GenericI2C) by compiling the appropriate HAL implementation and has a common console source code for control.
 
+There are scripts for each target platforms that help with deployment under `utils/`. </br>
+The [logic analyzer](https://github.com/mateuszbugaj/SimpleLogicAnalyzer) can be used to examine the transmission.
 ## Desktop platform
 Create the build-system
 ```
@@ -30,7 +32,17 @@ Each new pin output generates new line which contains the state of pins and the 
 {"timestamp":"16:02:59.415","signals":[{"MASTER_SCL_OUT":0},{"MASTER_SDA_OUT":0},{"SLAVE_SCL_OUT":0},{"SLAVE_SDA_OUT":0}],"SCL":1,"SDA":1}
 ```
 
-Other files in the `output/` directory such as `logic_analyzer_snapshot.txt`, `master_log.txt` or `slave_log.txt` can be used by [logic analyzer](https://github.com/mateuszbugaj/SimpleLogicAnalyzer).
+Other files in the `output/` directory such as `logic_analyzer_snapshot.txt`, `master_log.txt` or `slave_log.txt` can be used by [logic analyzer](https://github.com/mateuszbugaj/SimpleLogicAnalyzer) by providing the filenames in the analyzer-properties file.
+```json
+{
+  "logicProbe": { "file": "/path/to/the/logic_analyzer_snapshot.txt" },
+  "loggingProbe": [
+    { "name": "Transceiver", "file": "/path/to/the/master_log.txt" },
+    { "name": "Receiver", "file": "/path/to/the/slave_log.txt"}
+  ],
+  "signals": ["SDA", "SCL", "Transmitter SDA", "Transmitter SCL", "Receiver SDA", "Receiver SCL"]
+}
+```
 
 
 ## AVR platform
