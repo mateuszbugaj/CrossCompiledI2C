@@ -11,6 +11,7 @@ target_link_libraries(
   Stm32Demo
   USART
   GenericI2C
+  Console
   ${LIBOPENCM3_BLUEPILL_LIBRARIES}
 )
 add_bin_from_elf(

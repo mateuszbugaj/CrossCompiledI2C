@@ -15,6 +15,7 @@
 #include <I2C_HAL.h>
 extern "C" {
   #include <I2C.h>
+  #include <console.h>
 }
 
 #define PIN_STATE_FILE "output/pin_states.json"
@@ -175,7 +176,7 @@ int main(int argc, char** argv){
   };
 
   I2C_init(&i2c_config);
-
+  console_init(&i2c_config, &print_str);
 
   if(role == I2C_Role::SLAVE) {
     while(true){
@@ -184,51 +185,18 @@ int main(int argc, char** argv){
   }
 
   while(true){
-
-    // read user input from stdin and service commands for writing to the pins and reading from the pins
     std::cout << "> ";
     std::string input;
     std::getline(std::cin, input);
 
-    if(input == "exit"){
-      break;
-    } else if(input == "read scl"){
-      std::cout << (HAL_pinRead(&sclInPin) == HIGH ? "HIGH" : "LOW") << "\n";
-    } else if(input == "read sda"){
-      std::cout << (HAL_pinRead(&sdaInPin) == HIGH ? "HIGH" : "LOW") << "\n";
-    } else if(input == "write scl HIGH"){
-      HAL_pinWrite(&sclOutPin, HIGH);
-    } else if(input == "write scl LOW"){
-      HAL_pinWrite(&sclOutPin, LOW);
-    } else if(input == "write sda HIGH"){
-      HAL_pinWrite(&sdaOutPin, HIGH);
-    } else if(input == "write sda LOW"){
-      HAL_pinWrite(&sdaOutPin, LOW);
-    } else if(input == "auto"){
-      clearFile(LOGIC_ANALYZER_FILE);
-      
+    if(input.find("write") != std::string::npos){
       logicAnalyzerProbeRunning = true;
       std::thread t(startLogicAnalyzerProbe, std::chrono::milliseconds(10));
       t.detach();
-
-      I2C_sendStartCondition();
-      I2C_write(52);
-      I2C_write(18);
-      I2C_sendStopCondition();
-
-      logicAnalyzerProbeRunning = false;
-    } else {
-      std::cout << "Invalid input\n";
-      std::cout << "Valid inputs are:\n";
-      std::cout << "exit\n";
-      std::cout << "read scl\n";
-      std::cout << "read sda\n";
-      std::cout << "write scl HIGH\n";
-      std::cout << "write scl LOW\n";
-      std::cout << "write sda HIGH\n";
-      std::cout << "write sda LOW\n";
-      std::cout << "auto\n";
     }
+
+    console_parse(input.c_str());
+    logicAnalyzerProbeRunning = false;
   }
   
 

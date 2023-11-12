@@ -6,6 +6,7 @@
 #include <I2C_HAL.h>
 extern "C" {
   #include <I2C.h>
+  #include <console.h>
 }
 #include "USART.hpp"
 
@@ -40,11 +41,17 @@ int main(void){
   };
 
   I2C_init(&i2c_config);
+  console_init(&i2c_config, &USART_print);
 
   int count = 0;
   while (1){
     if(i2c_config.role == I2C_Role::SLAVE){
       I2C_read();
+    }
+
+    USART_getc(0);
+    if(!USART_commandProcessed()){
+      console_parse(USART_lastCommand);
     }
 
     if(gpio_get(GPIOA, GPIO0)){

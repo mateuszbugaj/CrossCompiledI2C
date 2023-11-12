@@ -5,6 +5,7 @@
 #include <I2C.h>
 #include <I2C_HAL.h>
 #include "USART.h"
+#include <console.h>
 
 #define MASTER_ADDR 51
 #define SLAVE_ADDR 52
@@ -39,18 +40,16 @@ int main(void) {
   }
 
   I2C_init(&i2c_config);
+  console_init(&i2c_config, &usart_print);
 
   while (1) {
     if(i2c_config.role == SLAVE){
       I2C_read();
-    }
-
-    if(i2c_config.role == MASTER){
-      I2C_sendStartCondition();
-      I2C_write(52);
-      I2C_write(18);
-      I2C_sendStopCondition();
-      return;
+    } else {
+      if(!usart_command_processed()){
+        console_parse(usart_last_command);
+        usart_print("> ");
+      }
     }
   }
 

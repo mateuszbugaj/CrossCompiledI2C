@@ -47,6 +47,8 @@ add_definitions("-D__AVR_ATmega168__")
 add_definitions("-D__OPTIMIZE__")
 add_definitions("-Os")  
 
+add_definitions(-DLIMITED_CONSOLE) # Custom define for limited console
+
 ##########################################################################
 # options
 ##########################################################################
