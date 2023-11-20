@@ -1,9 +1,6 @@
-#include <string.h>
-
 #include <console.h>
 #include <itoa.h>
-
-#include <stdio.h>
+#include <strlen.h>
 
 #ifdef DESKTOP
 #define NEW_LINE "\n"
@@ -86,11 +83,27 @@ void handleSetLoggingLever(const char* args) {
   i2c_cfg->loggingLevel = loggingLevelInt;
 }
 
+void handleGetSclLevel(const char* args){
+  char sclLevel[5];
+  itoa(HAL_pinRead(i2c_cfg->sclInPin), sclLevel, 10);
+  console_print(sclLevel);
+  console_print(NEW_LINE);
+}
+
+void handleGetSdaLevel(const char* args){
+  char sdaLevel[5];
+  itoa(HAL_pinRead(i2c_cfg->sdaInPin), sdaLevel, 10);
+  console_print(sdaLevel);
+  console_print(NEW_LINE);
+}
+
 Command getCommandTable[] = {
   {"role", handleGetRole},
   {"address", handleGetAddress},
   {"time_unit", handleGetTimeUnit},
-  {"logging_level", handleGetLoggingLevel}
+  {"logging_level", handleGetLoggingLevel},
+  {"scl", handleGetSclLevel},
+  {"sda", handleGetSdaLevel}
 };
 
 Command setCommandTable[] = {
@@ -140,11 +153,33 @@ void handleWriteStopCondition(const char* args) {
   I2C_sendStopCondition();
 }
 
+void handleWriteToCondition(const char* args) {
+  char address[5];
+  char payload[5];
+  getArg(args, address, 0);
+  getArg(args, payload, 1);
+  int addressInt = atoi(address);
+  int payloadInt = atoi(payload);
+
+  if (addressInt < 0 || addressInt > 127) {
+    return;
+  }
+
+  I2C_sendStartCondition();
+  bool ack = I2C_writeAddress(addressInt, WRITE);
+  if(ack){
+    I2C_write(payloadInt);
+  }
+
+  I2C_sendStopCondition();
+}
+
 Command writeCommandTable[] = {
   {"byte", handleWriteByte},
   {"addr", handleWriteAddress},
   {"start", handleWriteStartCondition},
-  {"stop", handleWriteStopCondition}
+  {"stop", handleWriteStopCondition},
+  {"to", handleWriteToCondition}
 };
 
 void console_init(I2C_Config* i2c_config, void (*print)(char*)){
@@ -197,9 +232,15 @@ void console_parse(const char* instruction) {
   for (int i = 0; i < commandTableSize; ++i) {
     char arg1[15];
     getArg(instruction, arg1, 1);
-    if (strcmp(arg1, ".") == 0 || strcmp(commandTable[i].command, arg1) == 0) {
+    if (strcmp(commandTable[i].command, arg1) == 0) {
       found = true;
+
+#ifdef DESKTOP
+      // TODO: This is a hack
+      commandTable[i].handler(instruction + strlen(command) + 2);
+#else
       commandTable[i].handler(instruction + strlen(command) + strlen(arg1) + 2);
+#endif
     }
   }
 
