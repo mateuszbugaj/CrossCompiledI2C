@@ -14,4 +14,5 @@ cmake -S . -B ${build_dir}/ -DTARGET_PLATFORM=AVR -DCMAKE_TOOLCHAIN_FILE=cmake/a
 cmake --build ${build_dir}/
 
 echo "Upload with: sudo make -C ${build_dir}/ upload_AvrDemo"
+sudo make -C ${build_dir}/ upload_AvrDemo
 echo "Done!"

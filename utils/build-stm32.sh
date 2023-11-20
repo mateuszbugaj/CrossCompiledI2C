@@ -13,5 +13,6 @@ fi
 cmake -S . -B ${build_dir}/ -DTARGET_PLATFORM=STM32 -DCMAKE_TOOLCHAIN_FILE=cmake/stm32/stm32-toolchain.cmake
 cmake --build ${build_dir}/
 
-echo "Upload with: make -C build-stm32/ Stm32Demo.bin_upload"
+echo "Upload with: make -C ${build_dir}/ Stm32Demo.bin_upload"
+make -C ${build_dir}/ Stm32Demo.bin_upload
 echo "Done!"
