@@ -4,6 +4,7 @@
 
 #include <I2C.h>
 #include <I2C_HAL.h>
+#include <I2C_HAL_AVR.h>
 #include "USART.h"
 #include <console.h>
 
@@ -18,16 +19,17 @@ int main(void) {
 
   I2C_Config i2c_config = {
     .loggingLevel = 4,
-    .sclOutPin = HAL_pinSetup(&sclOutPin, &PORTD, 7, PULLUP_ENABLE),
-    .sdaOutPin = HAL_pinSetup(&sdaOutPin, &PORTD, 6, PULLUP_ENABLE),
-    .sclInPin = HAL_pinSetup(&sclInPin, &PORTD, 5, PULLUP_ENABLE),
-    .sdaInPin = HAL_pinSetup(&sdaInPin, &PORTB, 7, PULLUP_ENABLE),
+    .sclOutPin = HAL_pinSetup(&sclOutPin, &PORTD, &PIND, 7, &DDRD),
+    .sdaOutPin = HAL_pinSetup(&sdaOutPin, &PORTD, &PIND, 6, &DDRD),
+    .sclInPin = HAL_pinSetup(&sclInPin, &PORTD, &PIND, 5, &DDRD),
+    .sdaInPin = HAL_pinSetup(&sdaInPin, &PORTB, &PINB, 7, &DDRB),
     .timeUnit = 200,
     .print_str = &usart_print,
     .print_num = &usart_print_num,
   };
 
-  HAL_Pin rolePin = {&PORTB, 2, PULLUP_ENABLE};
+  HAL_Pin rolePin;
+  HAL_pinSetup(&rolePin, &PORTB, &PINB, 2, &DDRB);
   HAL_setPinDirection(&rolePin, INPUT);
 
   if(HAL_pinRead(&rolePin) == LOW){
@@ -45,6 +47,10 @@ int main(void) {
   while (1) {
     if(i2c_config.role == SLAVE){
       I2C_read();
+      if(!usart_command_processed()){
+        console_parse(usart_last_command);
+        usart_print("> ");
+      }
     } else {
       if(!usart_command_processed()){
         console_parse(usart_last_command);

@@ -6,14 +6,17 @@
 #include <map>
 #include <thread>
 #include <chrono>
+#include <mutex>
+#include <condition_variable>
 
 #include <rapidjson/document.h>
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/prettywriter.h>
 
-#include <I2C_HAL.h>
 extern "C" {
+  #include <I2C_HAL.h>
+  #include <I2C_HAL_DESKTOP.h>
   #include <I2C.h>
   #include <console.h>
 }
@@ -23,6 +26,26 @@ extern "C" {
 
 I2C_Role role = I2C_Role::MASTER;
 bool logicAnalyzerProbeRunning = false;
+
+std::mutex inputMutex;
+std::condition_variable inputCond;
+std::string sharedInput;
+bool inputAvailable = false;
+
+void consoleInputThread() {
+  while (true) {
+    std::string input;
+    std::getline(std::cin, input);
+
+    {
+      std::lock_guard<std::mutex> lock(inputMutex);
+      sharedInput = input;
+      inputAvailable = true;
+    }
+
+    inputCond.notify_one();
+  }
+}
 
 void print_str(char str[]){
   std::string filename = std::string("output/") + (role == I2C_Role::MASTER ? "master" : "slave") + "_log.txt";
@@ -166,10 +189,10 @@ int main(int argc, char** argv){
     .addr = role == I2C_Role::MASTER ? (uint8_t) 51 : (uint8_t) 52,
     .loggingLevel = 4,
     .role = role,
-    .sclOutPin = HAL_pinSetup(&sclOutPin, nullptr, 1, HAL_PullupConfig::PULLUP_ENABLE),
-    .sdaOutPin = HAL_pinSetup(&sdaOutPin, nullptr, 2, HAL_PullupConfig::PULLUP_ENABLE),
-    .sclInPin = HAL_pinSetup(&sclInPin, nullptr, 3, HAL_PullupConfig::PULLUP_ENABLE),
-    .sdaInPin = HAL_pinSetup(&sdaInPin, nullptr, 4, HAL_PullupConfig::PULLUP_ENABLE),
+    .sclOutPin = HAL_pinSetup(&sclOutPin, 1),
+    .sdaOutPin = HAL_pinSetup(&sdaOutPin, 2),
+    .sclInPin = HAL_pinSetup(&sclInPin, 3),
+    .sdaInPin = HAL_pinSetup(&sdaInPin, 4),
     .timeUnit = 100,
     .print_str = &print_str,
     .print_num = &print_num,
@@ -178,27 +201,32 @@ int main(int argc, char** argv){
   I2C_init(&i2c_config);
   console_init(&i2c_config, &print_str);
 
-  if(role == I2C_Role::SLAVE) {
-    while(true){
+  // Start console input thread
+  std::thread inputThread(consoleInputThread);
+
+  std::cout << "> ";
+  while (true) {
+    if (role == I2C_Role::SLAVE) {
       I2C_read();
     }
-  }
 
-  while(true){
-    std::cout << "> ";
-    std::string input;
-    std::getline(std::cin, input);
-
-    if(input.find("write") != std::string::npos){
-      logicAnalyzerProbeRunning = true;
-      std::thread t(startLogicAnalyzerProbe, std::chrono::milliseconds(10));
-      t.detach();
+    {
+      std::unique_lock<std::mutex> lock(inputMutex);
+      if (inputCond.wait_for(lock, std::chrono::milliseconds(10), [] { return inputAvailable; })) {
+        std::cout << "> " << sharedInput << std::endl;
+        if (sharedInput.find("write") != std::string::npos) {
+          logicAnalyzerProbeRunning = true;
+          std::thread t(startLogicAnalyzerProbe, std::chrono::milliseconds(10));
+          t.detach();
+        }
+        console_parse(sharedInput.c_str());
+        logicAnalyzerProbeRunning = false;
+        inputAvailable = false;
+      }
     }
 
-    console_parse(input.c_str());
-    logicAnalyzerProbeRunning = false;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-  
 
   return 0;
 }
