@@ -1,6 +1,6 @@
 #include <console.h>
 #include <itoa.h>
-#include <strlen.h>
+#include <string.h>
 
 #ifdef DESKTOP
 #define NEW_LINE "\n"
