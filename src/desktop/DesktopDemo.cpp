@@ -1,18 +1,11 @@
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <cstring>
-#include <vector>
-#include <map>
 #include <thread>
 #include <chrono>
-#include <mutex>
-#include <condition_variable>
-
-#include <rapidjson/document.h>
-#include <rapidjson/ostreamwrapper.h>
-#include <rapidjson/istreamwrapper.h>
-#include <rapidjson/prettywriter.h>
+#include <unordered_map>
+#include <queue>
+#include <string.h>
+#include <fstream>
 
 extern "C" {
   #include <I2C_HAL.h>
@@ -21,127 +14,134 @@ extern "C" {
   #include <console.h>
 }
 
-#define PIN_STATE_FILE "output/pin_states.json"
-#define LOGIC_ANALYZER_FILE "output/logic_analyzer_snapshot.txt"
+#define PIN_STATE_FILE "output/pins.log"
+#define TRANSMITTER_LOG_FILE "output/master.log"
+#define RECEIVER_LOG_FILE "output/slave.log"
 
-I2C_Role role = I2C_Role::MASTER;
-bool logicAnalyzerProbeRunning = false;
+#define TRANSMITTER_ADDRESS 51
+#define RECEIVER_ADDRESS 52
 
-std::mutex inputMutex;
-std::condition_variable inputCond;
-std::string sharedInput;
-bool inputAvailable = false;
+volatile bool logicAnalyzerProbeRunning = false;
 
-void consoleInputThread() {
-  while (true) {
-    std::string input;
-    std::getline(std::cin, input);
+class Device {
+  private:
+    std::string name;
+    I2C_Config I2C_config;
+    std::thread executionTread;
+    std::queue<std::string> instructions;
+    bool transmissionRunning = false;
 
-    {
-      std::lock_guard<std::mutex> lock(inputMutex);
-      sharedInput = input;
-      inputAvailable = true;
+  public:
+    Device(std::string name, uint8_t addreess, I2C_Role role){
+      this->name = name;
+
+      I2C_config = {
+        .addr = addreess,
+        .loggingLevel = 4,
+        .role = role,
+        .sclOutPin = HAL_pinSetup(SCL_OUT),
+        .sdaOutPin = HAL_pinSetup(SDA_OUT),
+        .sclInPin = HAL_pinSetup(SCL_IN),
+        .sdaInPin = HAL_pinSetup(SDA_IN),
+        .timeUnit = 150,
+        .print_str = Device::printStr,
+        .print_num = Device::printNum
+      };
+
+      I2C_init(&I2C_config);
+
+      executionTread = std::thread([this](){
+        this->executionThreadFunction();
+      });
     }
 
-    inputCond.notify_one();
-  }
-}
+    void executionThreadFunction(){
+      while(true){
+        if(!instructions.empty()){
+          std::string instruction = instructions.front();
+          instructions.pop();
 
-void print_str(char str[]){
-  std::string filename = std::string("output/") + (role == I2C_Role::MASTER ? "master" : "slave") + "_log.txt";
+          transmissionRunning = true;
+          console_parse(&I2C_config, instruction.c_str());
+          transmissionRunning = false;
+        }
 
-  char strCopy[50] {0};
+        if(I2C_config.role == I2C_Role::SLAVE){
+          I2C_read(&I2C_config);
+        }
 
-  // Strip trailing newlines
-  for(int i = 0; i < strlen(str); i++){
-    if(str[i] != '\r'){
-      strCopy[i] = str[i];
-    } else {
-      strCopy[i] = '\0';
-      break;
-    }
-  }
-
-  std::ofstream ofs(filename, std::ios::app);
-  if(ofs.is_open()){
-    ofs << strCopy;
-    ofs.close();
-  } else {
-    std::cout << "Unable to open file for writing log\n";
-  }
-
-  std::cout << strCopy;
-}
-
-void print_num(uint16_t num){
-  std::string filename = std::string("output/") + (role == I2C_Role::MASTER ? "master" : "slave") + "_log.txt";
-  std::ofstream ofs(filename, std::ios::app);
-  if(ofs.is_open()){
-    ofs << int(num);
-    ofs.close();
-  } else {
-    std::cout << "Unable to open file for writing log\n";
-  }
-
-  std::cout << int(num);
-}
-
-void logicAnalyzerSnapshot(){
-  // Parse last line of the PIN_STATE_FILE to get the current pin states and save them to a LOGIC_ANALYZER_FILE for the logic analyzer.
-  // Each line of the PIN_STATE_FILE is a JSON with the following format:
-  // {"timestamp":"...","signals":[{"SLAVE_SCL_OUT":0},{"SLAVE_SDA_OUT":0},{"MASTER_SCL_OUT":0},{"MASTER_SDA_OUT":0}],"SCL":0,"SDA":1}
-  // Each line of the LOGIC_ANALYZER_FILE is a binary string with bits separated by spaces which are the output pins and the bus state (SCL and SDA)
-  // Example: 0 1 0 1 0 1 0 1
-
-  std::ifstream ifs(PIN_STATE_FILE);
-  std::string lastLine;
-  if (ifs.is_open()) {
-    std::string line;
-    while (std::getline(ifs, line)) {
-      lastLine = line;
-    }
-    ifs.close();
-  }
-
-  if(lastLine.size() > 0){
-    std::string timestamp;
-    std::map<std::string, int> pinStates;
-    int scl, sda;
-
-    rapidjson::Document d;
-    d.Parse(lastLine.c_str());
-    timestamp = d["timestamp"].GetString();
-    for(auto& signal : d["signals"].GetArray()){
-      pinStates[signal.GetObject().MemberBegin()->name.GetString()] = signal.GetObject().MemberBegin()->value.GetInt();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
     }
 
-    if(d.HasMember("SCL")){
-      scl = d["SCL"].GetInt();
-    } else {
-      scl = 0;
+    ~Device(){
+      if (executionTread.joinable()) {
+        executionTread.join();
+      }
+
+      std::cout << "Deleting " << name << " device" << std::endl;
+      delete I2C_config.sclInPin;
+      delete I2C_config.sclOutPin;
+      delete I2C_config.sdaInPin;
+      delete I2C_config.sdaOutPin;
     }
 
-    if(d.HasMember("SDA")){
-      sda = d["SDA"].GetInt();
-    } else {
-      sda = 0;
+    static void printToFile(std::string str, I2C_Role role){
+      std::string filename = role == I2C_Role::MASTER ? TRANSMITTER_LOG_FILE : RECEIVER_LOG_FILE;
+      char strCopy[50] {0};
+
+      // Strip trailing newlines
+      for(int i = 0; i < str.length(); i++){
+        if(str[i] != '\r'){
+          strCopy[i] = str[i];
+        } else {
+          strCopy[i] = '\0';
+          break;
+        }
+      }
+
+      std::ofstream ofs(filename, std::ios::app);
+      if(ofs.is_open()){
+        ofs << strCopy;
+        ofs.close();
+      } else {
+        std::cout << "Unable to open file for writing log\n";
+      }
     }
 
-    std::ofstream ofs(LOGIC_ANALYZER_FILE, std::ios::app);
-    if(ofs.is_open()){
-      ofs << sda << " " << scl << " " << pinStates["MASTER_SDA_OUT"] << " " << pinStates["MASTER_SCL_OUT"] << " " << pinStates["SLAVE_SDA_OUT"] << " " << pinStates["SLAVE_SCL_OUT"] << std::endl;
-      ofs.close();
-    } else {
-      std::cout << "Unable to open file for writing logic analyzer snapshot\n";
-    }
-  }
-}
+    static void printStr(I2C_Role role, char str[]){
+      printToFile(str, role);
 
-void startLogicAnalyzerProbe(std::chrono::milliseconds interval){  
-  while(logicAnalyzerProbeRunning){
-    logicAnalyzerSnapshot();
-    std::this_thread::sleep_for(interval);
-  }
+      std::string colorCode = role == I2C_Role::MASTER ? "\033[31m" : "\033[32m";
+      std::cout << colorCode << str << "\033[0m";
+    }
+
+    static void printNum(I2C_Role role, uint16_t num){
+      printToFile(std::to_string(num), role);
+
+      std::string colorCode = role == I2C_Role::MASTER ? "\033[31m" : "\033[32m";
+      std::cout << colorCode << int(num) << "\033[0m";
+    }
+
+    std::string getName(){
+      return name;
+    }
+
+    I2C_Config getI2CConfig(){
+      return I2C_config;
+    }
+
+    void send(std::string instruction){
+      instructions.push(instruction);
+    }
+
+    bool isTransmissionRunning(){
+      return transmissionRunning;
+    }
+};
+
+void consolePrint(char str[]){
+  std::cout << str;
 }
 
 void clearFile(std::string file){
@@ -150,82 +150,61 @@ void clearFile(std::string file){
 }
 
 int main(int argc, char** argv){
-  std::cout << "DesktopDemo Start.\n";
+  clearFile(TRANSMITTER_LOG_FILE);
+  clearFile(RECEIVER_LOG_FILE);
+  clearFile(PIN_STATE_FILE);
+  console_init(consolePrint);
 
-  // Process command-line arguments
-  for (int i = 1; i < argc; i++) {
-    std::string arg = argv[i];
-    if (arg.substr(0, 7) == "--role=") {
-      char roleValue = arg[7];
-      if (roleValue == '1') {
-        role = I2C_Role::MASTER;
-      } else if (roleValue == '2') {
-        role = I2C_Role::SLAVE;
-      } else {
-        std::cerr << "Invalid role value. Use --role=1 for MASTER or --role=2 for SLAVE." << std::endl;
-        return 1; // exit with error
-      }
-    }
-  }
+  Device transmitterDevice("Transmitter", TRANSMITTER_ADDRESS, I2C_Role::MASTER);
+  Device receiverDevice("Receiver", RECEIVER_ADDRESS, I2C_Role::SLAVE);
 
-  // Clear the log files
-  std::string filename = std::string("output/") + (role == I2C_Role::MASTER ? "master" : "slave") + "_log.txt";
-  clearFile(filename);
+  std::thread logicAnalyzerProbeThread([&transmitterDevice, &receiverDevice](){
+    std::string filename = PIN_STATE_FILE;
+    while(true){
+      if(transmitterDevice.isTransmissionRunning()){
+        std::ofstream ofs(filename, std::ios::app);
+        if(ofs.is_open()){
+          ofs 
+            << HAL_pinRead(HAL_SclPin()) << " " 
+            << HAL_pinRead(HAL_SdaPin()) << " "
+            << HAL_pinRead(transmitterDevice.getI2CConfig().sdaOutPin) << " "
+            << HAL_pinRead(transmitterDevice.getI2CConfig().sclOutPin) << " "
+            << HAL_pinRead(receiverDevice.getI2CConfig().sdaOutPin) << " "
+            << HAL_pinRead(receiverDevice.getI2CConfig().sclOutPin) << std::endl;
 
-  if(role == I2C_Role::MASTER){
-    clearFile(PIN_STATE_FILE);
-  }
-
-  HAL_Pin sclOutPin, sdaOutPin, sclInPin, sdaInPin;
-  std::string roleString = role == I2C_Role::MASTER ? "MASTER" : "SLAVE";
-
-  HAL_registerPin(&sclOutPin, (roleString + "_SCL_OUT").c_str());
-  HAL_registerPin(&sdaOutPin, (roleString + "_SDA_OUT").c_str());
-
-  HAL_registerPin(&sclInPin, (roleString + "_SCL_IN").c_str());
-  HAL_registerPin(&sdaInPin, (roleString + "_SDA_IN").c_str());
-
-  I2C_Config i2c_config {
-    .addr = role == I2C_Role::MASTER ? (uint8_t) 51 : (uint8_t) 52,
-    .loggingLevel = 4,
-    .role = role,
-    .sclOutPin = HAL_pinSetup(&sclOutPin, 1),
-    .sdaOutPin = HAL_pinSetup(&sdaOutPin, 2),
-    .sclInPin = HAL_pinSetup(&sclInPin, 3),
-    .sdaInPin = HAL_pinSetup(&sdaInPin, 4),
-    .timeUnit = 100,
-    .print_str = &print_str,
-    .print_num = &print_num,
-  };
-
-  I2C_init(&i2c_config);
-  console_init(&i2c_config, &print_str);
-
-  // Start console input thread
-  std::thread inputThread(consoleInputThread);
-
-  std::cout << "> ";
-  while (true) {
-    if (role == I2C_Role::SLAVE) {
-      I2C_read();
-    }
-
-    {
-      std::unique_lock<std::mutex> lock(inputMutex);
-      if (inputCond.wait_for(lock, std::chrono::milliseconds(10), [] { return inputAvailable; })) {
-        std::cout << "> " << sharedInput << std::endl;
-        if (sharedInput.find("write") != std::string::npos) {
-          logicAnalyzerProbeRunning = true;
-          std::thread t(startLogicAnalyzerProbe, std::chrono::milliseconds(10));
-          t.detach();
+          ofs.close();
+        } else {
+          std::cout << "Unable to open file for writing log\n";
         }
-        console_parse(sharedInput.c_str());
-        logicAnalyzerProbeRunning = false;
-        inputAvailable = false;
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
       }
     }
+  });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  std::thread userInputThread([&transmitterDevice, &receiverDevice](){
+    Device* device = &transmitterDevice;
+
+    printf("%s (%d):", device->getName().c_str(), device->getI2CConfig().addr);
+    while(true){
+      std::string input;
+      std::getline(std::cin, input);
+
+      if(input == "t") device = &transmitterDevice;
+      else if(input == "r") device = &receiverDevice;
+      else if(!input.empty()) device->send(input);
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      printf("%s (%d):", device->getName().c_str(), device->getI2CConfig().addr);
+    }
+  });
+
+  if (logicAnalyzerProbeThread.joinable()){
+    logicAnalyzerProbeThread.join();
+  }
+
+  if (userInputThread.joinable()) {
+    userInputThread.join();
   }
 
   return 0;

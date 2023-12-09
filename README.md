@@ -18,29 +18,23 @@ Build executable
 cmake --build build-desktop/
 ```
 
-Run `transmitter` instance
+Run
 ```
-build-desktop/src/desktop/DesktopDemo --role=1
-```
-
-Run `receiver` instance
-```
-build-desktop/src/desktop/DesktopDemo --role=2
+build-desktop/src/desktop/DesktopDemo
 ```
 
-The HAL implementation is using `output/pin_states.json` instead of real MCU pins to read and write to the I2C bus. </br>
-Each new pin output generates new line which contains the state of pins and the calculated bus state.
-```JSON
-{"timestamp":"16:02:59.415","signals":[{"MASTER_SCL_OUT":0},{"MASTER_SDA_OUT":0},{"SLAVE_SCL_OUT":0},{"SLAVE_SDA_OUT":0}],"SCL":1,"SDA":1}
+Run Tests
+```
+build-desktop/test/Tests
 ```
 
-Other files in the `output/` directory such as `logic_analyzer_snapshot.txt`, `master_log.txt` or `slave_log.txt` can be used by [logic analyzer](https://github.com/mateuszbugaj/SimpleLogicAnalyzer) by providing the filenames in the analyzer-properties file.
+Files generated in the `output/` directory such as `pins.log`, `master.log` or `slave.log` can be used by [logic analyzer](https://github.com/mateuszbugaj/SimpleLogicAnalyzer) by providing the filenames in the analyzer-properties file.
 ```json
 {
-  "logicProbe": { "file": "/path/to/the/logic_analyzer_snapshot.txt" },
+  "logicProbe": { "file": "/path/to/the/pins.log" },
   "loggingProbe": [
-    { "name": "Transceiver", "file": "/path/to/the/master_log.txt" },
-    { "name": "Receiver", "file": "/path/to/the/slave_log.txt"}
+    { "name": "Transceiver", "file": "/path/to/the/master.log" },
+    { "name": "Receiver", "file": "/path/to/the/slave.log"}
   ],
   "signals": ["SDA", "SCL", "Transmitter SDA", "Transmitter SCL", "Receiver SDA", "Receiver SCL"]
 }
@@ -96,6 +90,8 @@ These commands are used to set various parameters of the I2C configuration.
 - set address [0-127]: Sets the I2C address.
 - set time_unit [0-1000]: Sets the time unit.
 - set logging_level [0-5]: Sets the logging level.
+- set scl [0/1]: Sets the SCL_OUT pin level
+- set sda [0/1]: Sets the SDA_OUT pin level
 ### Write Commands
 These commands are specific to writing operations in I2C communication.
 

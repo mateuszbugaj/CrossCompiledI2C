@@ -41,8 +41,9 @@ cmake --build ${build_dir}/
 if [ "${test_flag}" == true ]; then
     echo "Running tests..."
     ${build_dir}/test/Tests
+else
+    echo "Run: ${build_dir}/src/desktop/DesktopDemo"
+    ${build_dir}/src/desktop/DesktopDemo
 fi
 
-echo "Run with: ${build_dir}/src/desktop/DesktopDemo --role=${role}"
 echo "Done!"
-${build_dir}/src/desktop/DesktopDemo --role=${role}

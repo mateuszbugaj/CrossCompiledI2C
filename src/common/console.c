@@ -8,21 +8,20 @@
 #define NEW_LINE "\n\r"
 #endif
 
-I2C_Config* i2c_cfg;
 void (*console_print)(char*) = 0;
-typedef void (*CommandHandler)(const char*);
+typedef void (*CommandHandler)(I2C_Config* cfg, const char*);
 
 typedef struct {
   const char* command;
   CommandHandler handler;
 } Command;
 
-void handleGetRole(const char* args) {
+void handleGetRole(I2C_Config* i2c_cfg,  char* args) {
   console_print(i2c_cfg->role == MASTER ? "MASTER" : "SLAVE");
   console_print(NEW_LINE);
 }
 
-void handleSetRole(const char* args) {
+void handleSetRole(I2C_Config* i2c_cfg, const char* args) {
   char role[10];
   getArg(args, role, 0);
   if (strcmp(role, "master") == 0) {
@@ -32,14 +31,14 @@ void handleSetRole(const char* args) {
   }
 }
 
-void handleGetAddress(const char* args) {
+void handleGetAddress(I2C_Config* i2c_cfg, const char* args) {
   char address[5];
   itoa(i2c_cfg->addr, address, 10);
   console_print(address);
   console_print(NEW_LINE);
 }
 
-void handleSetAddr(const char* args) {
+void handleSetAddr(I2C_Config* i2c_cfg, const char* args) {
   char address[5];
   getArg(args, address, 0);
   int addr = atoi(address);
@@ -49,14 +48,14 @@ void handleSetAddr(const char* args) {
   i2c_cfg->addr = addr;
 }
 
-void handleGetTimeUnit(const char* args) {
+void handleGetTimeUnit(I2C_Config* i2c_cfg, const char* args) {
   char timeUnit[5];
   itoa(i2c_cfg->timeUnit, timeUnit, 10);
   console_print(timeUnit);
   console_print(NEW_LINE);
 }
 
-void handleSetTimeUnit(const char* args) {
+void handleSetTimeUnit(I2C_Config* i2c_cfg, const char* args) {
   char timeUnit[5];
   getArg(args, timeUnit, 0);
   int timeUnitInt = atoi(timeUnit);
@@ -66,14 +65,14 @@ void handleSetTimeUnit(const char* args) {
   i2c_cfg->timeUnit = timeUnitInt;
 }
 
-void handleGetLoggingLevel(const char* args) {
+void handleGetLoggingLevel(I2C_Config* i2c_cfg, const char* args) {
   char loggingLevel[5];
   itoa(i2c_cfg->loggingLevel, loggingLevel, 10);
   console_print(loggingLevel);
   console_print(NEW_LINE);
 }
 
-void handleSetLoggingLever(const char* args) {
+void handleSetLoggingLever(I2C_Config* i2c_cfg, const char* args) {
   char loggingLevel[5];
   getArg(args, loggingLevel, 0);
   int loggingLevelInt = atoi(loggingLevel);
@@ -83,18 +82,30 @@ void handleSetLoggingLever(const char* args) {
   i2c_cfg->loggingLevel = loggingLevelInt;
 }
 
-void handleGetSclLevel(const char* args){
+void handleGetSclLevel(I2C_Config* i2c_cfg, const char* args){
   char sclLevel[5];
   itoa(HAL_pinRead(i2c_cfg->sclInPin), sclLevel, 10);
   console_print(sclLevel);
   console_print(NEW_LINE);
 }
 
-void handleGetSdaLevel(const char* args){
+void handleGetSdaLevel(I2C_Config* i2c_cfg, const char* args){
   char sdaLevel[5];
   itoa(HAL_pinRead(i2c_cfg->sdaInPin), sdaLevel, 10);
   console_print(sdaLevel);
   console_print(NEW_LINE);
+}
+
+void handleSetScl(I2C_Config* i2c_cfg, const char* args){
+  char sclLevel[5];
+  itoa(HAL_pinRead(i2c_cfg->sdaInPin), sclLevel, 10);
+  HAL_pinWrite(i2c_cfg->sclOutPin, sclLevel == 0 ? LOW : HIGH);
+}
+
+void handleSetSda(I2C_Config* i2c_cfg, const char* args){
+  char sdaLevel[5];
+  itoa(HAL_pinRead(i2c_cfg->sdaInPin), sdaLevel, 10);
+  HAL_pinWrite(i2c_cfg->sclOutPin, sdaLevel == 0 ? LOW : HIGH);
 }
 
 Command getCommandTable[] = {
@@ -110,10 +121,12 @@ Command setCommandTable[] = {
   {"role", handleSetRole},
   {"address", handleSetAddr},
   {"time_unit", handleSetTimeUnit},
-  {"logging_level", handleSetLoggingLever}
+  {"logging_level", handleSetLoggingLever},
+  {"scl", handleSetScl},
+  {"sda", handleSetSda}
 };
 
-void handleWriteByte(const char* args) {
+void handleWriteByte(I2C_Config* i2c_cfg, const char* args) {
   char byte[5];
   getArg(args, byte, 0);
   console_print("B:");
@@ -124,10 +137,10 @@ void handleWriteByte(const char* args) {
     return;
   }
 
-  I2C_write(byteInt);
+  I2C_write(i2c_cfg, byteInt);
 }
 
-void handleWriteAddress(const char* args) {
+void handleWriteAddress(I2C_Config* i2c_cfg, const char* args) {
   char address[5];
   char direction[5];
   getArg(args, address, 0);
@@ -139,21 +152,21 @@ void handleWriteAddress(const char* args) {
   }
 
   if (strcmp(direction, "r") == 0) {
-    I2C_writeAddress(addressInt, READ);
+    I2C_writeAddress(i2c_cfg, addressInt, READ);
   } else if (strcmp(direction, "w") == 0) {
-    I2C_writeAddress(addressInt, WRITE);
+    I2C_writeAddress(i2c_cfg, addressInt, WRITE);
   }
 }
 
-void handleWriteStartCondition(const char* args) {
-  I2C_sendStartCondition();
+void handleWriteStartCondition(I2C_Config* i2c_cfg, const char* args) {
+  I2C_sendStartCondition(i2c_cfg);
 }
 
-void handleWriteStopCondition(const char* args) {
-  I2C_sendStopCondition();
+void handleWriteStopCondition(I2C_Config* i2c_cfg, const char* args) {
+  I2C_sendStopCondition(i2c_cfg);
 }
 
-void handleWriteToCondition(const char* args) {
+void handleWriteToCondition(I2C_Config* i2c_cfg, const char* args) {
   char address[5];
   char payload[5];
   getArg(args, address, 0);
@@ -165,13 +178,13 @@ void handleWriteToCondition(const char* args) {
     return;
   }
 
-  I2C_sendStartCondition();
-  bool ack = I2C_writeAddress(addressInt, WRITE);
+  I2C_sendStartCondition(i2c_cfg);
+  bool ack = I2C_writeAddress(i2c_cfg, addressInt, WRITE);
   if(ack){
-    I2C_write(payloadInt);
+    I2C_write(i2c_cfg, payloadInt);
   }
 
-  I2C_sendStopCondition();
+  I2C_sendStopCondition(i2c_cfg);
 }
 
 Command writeCommandTable[] = {
@@ -182,9 +195,8 @@ Command writeCommandTable[] = {
   {"to", handleWriteToCondition}
 };
 
-void console_init(I2C_Config* i2c_config, void (*print)(char*)){
+void console_init(void (*print)(char*)){
   console_print = print;
-  i2c_cfg = i2c_config;
 }
 
 void getArg(const char* args, char* arg, int argNum) {
@@ -208,7 +220,7 @@ void getArg(const char* args, char* arg, int argNum) {
   arg[argCharNum] = '\0';
 }
 
-void console_parse(const char* instruction) {
+void console_parse(I2C_Config* cfg, const char* instruction) {
   char command[5];
   getArg(instruction, command, 0);
 
@@ -237,9 +249,10 @@ void console_parse(const char* instruction) {
 
 #ifdef DESKTOP
       // TODO: This is a hack
-      commandTable[i].handler(instruction + strlen(command) + 2);
+      // commandTable[i].handler(cfg, instruction + strlen(command) + 2);
+      commandTable[i].handler(cfg, instruction + strlen(command) + strlen(arg1) + 2);
 #else
-      commandTable[i].handler(instruction + strlen(command) + strlen(arg1) + 2);
+      commandTable[i].handler(cfg, instruction + strlen(command) + strlen(arg1) + 2);
 #endif
     }
   }

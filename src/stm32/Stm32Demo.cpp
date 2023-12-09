@@ -13,6 +13,14 @@ extern "C" {
 
 #define MASTER_ADDR 82
 
+void I2C_print(I2C_Role role, char str[]){
+  USART_print(str);
+}
+
+void I2C_printNum(I2C_Role role, uint16_t num){
+  USART_printNum(num);
+}
+
 int main(void){
   rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
@@ -33,22 +41,22 @@ int main(void){
     .sclInPin = HAL_pinSetup(&sclInPin, GPIOB, GPIO12),
     .sdaInPin = HAL_pinSetup(&sdaInPin, GPIOB, GPIO13),
     .timeUnit = 100,
-    .print_str = &USART_print,
-    .print_num = &USART_printNum
+    .print_str = &I2C_print,
+    .print_num = &I2C_printNum
   };
 
   I2C_init(&i2c_config);
-  console_init(&i2c_config, &USART_print);
+  console_init(&USART_print);
 
   int count = 0;
   while (1){
     if(i2c_config.role == I2C_Role::SLAVE){
-      I2C_read();
+      I2C_read(&i2c_config);
     }
 
     USART_getc(0);
     if(!USART_commandProcessed()){
-      console_parse(USART_lastCommand);
+      console_parse(&i2c_config, USART_lastCommand);
       USART_print("> ");
     }
   }

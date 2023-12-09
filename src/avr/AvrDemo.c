@@ -11,6 +11,14 @@
 #define MASTER_ADDR 51
 #define SLAVE_ADDR 52
 
+void I2C_print(I2C_Role role, char str[]){
+  usart_print(str);
+}
+
+void I2C_printNum(I2C_Role role, uint16_t num){
+  usart_print_num(num);
+}
+
 int main(void) {
   clock_prescale_set(clock_div_1);
   usart_init();
@@ -24,8 +32,8 @@ int main(void) {
     .sclInPin = HAL_pinSetup(&sclInPin, &PORTD, &PIND, 5, &DDRD),
     .sdaInPin = HAL_pinSetup(&sdaInPin, &PORTB, &PINB, 7, &DDRB),
     .timeUnit = 200,
-    .print_str = &usart_print,
-    .print_num = &usart_print_num,
+    .print_str = &I2C_print,
+    .print_num = &I2C_printNum,
   };
 
   HAL_Pin rolePin;
@@ -42,18 +50,18 @@ int main(void) {
   }
 
   I2C_init(&i2c_config);
-  console_init(&i2c_config, &usart_print);
+  console_init(&usart_print);
 
   while (1) {
     if(i2c_config.role == SLAVE){
-      I2C_read();
+      I2C_read(&i2c_config);
       if(!usart_command_processed()){
-        console_parse(usart_last_command);
+        console_parse(&i2c_config, usart_last_command);
         usart_print("> ");
       }
     } else {
       if(!usart_command_processed()){
-        console_parse(usart_last_command);
+        console_parse(&i2c_config, usart_last_command);
         usart_print("> ");
       }
     }
