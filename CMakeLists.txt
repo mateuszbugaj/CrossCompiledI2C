@@ -13,6 +13,7 @@ if(TARGET_PLATFORM STREQUAL "STM32")
 endif()
 
 add_subdirectory(lib/GenericI2C)
+add_subdirectory(lib/GenericSPI)
 add_subdirectory(src/common)
 
 if(TARGET_PLATFORM STREQUAL "DESKTOP" OR NOT DEFINED TARGET_PLATFORM)

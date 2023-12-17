@@ -4,10 +4,9 @@ build_dir="build-desktop"
 
 echo "Building for desktop..."
 
-# Initialize default role value
-role="1"
+program_parameters=()
 
-# Process each argument
+# Process each argument and the rest of the arguments pass to the program
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -d)
@@ -17,18 +16,8 @@ while [ "$#" -gt 0 ]; do
         -t)
             test_flag=true
             ;;
-        --role)
-            if [ -n "$2" ]; then
-                role="$2"
-                shift
-            else
-                echo "Error: --role requires an argument."
-                exit 1
-            fi
-            ;;
         *)
-            echo "Unknown option: $1"
-            exit 1
+            program_parameters+=("$1")
             ;;
     esac
     shift
@@ -42,8 +31,9 @@ if [ "${test_flag}" == true ]; then
     echo "Running tests..."
     ${build_dir}/test/Tests
 else
-    echo "Run: ${build_dir}/src/desktop/DesktopDemo"
-    ${build_dir}/src/desktop/DesktopDemo
+    echo "Run: ${build_dir}/src/desktop/DesktopDemo ${program_parameters[@]}"
+    # Pass the rest of the arguments to the program
+    ${build_dir}/src/desktop/DesktopDemo ${program_parameters[@]}
 fi
 
 echo "Done!"

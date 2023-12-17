@@ -7,3 +7,6 @@
 [submodule "test/googletest"]
 	path = test/googletest
 	url = git@github.com:google/googletest.git
+[submodule "lib/GenericSPI"]
+	path = lib/GenericSPI
+	url = git@github.com:mateuszbugaj/GenericSPI.git
