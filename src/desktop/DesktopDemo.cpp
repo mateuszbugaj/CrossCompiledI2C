@@ -15,10 +15,10 @@ extern "C" {
   #include <I2C_HAL_DESKTOP.h>
   #include <I2C.h>
   #include <SPI_HAL.h>
-  #include <SPI_HAL_DESKTOP.h>
   #include <SPI.h>
   #include <console.h>
 }
+#include <SPI_HAL_DESKTOP.hpp>
 
 #define TRANSMITTER_ADDRESS 51
 #define RECEIVER_ADDRESS 52
@@ -97,6 +97,7 @@ int main(int argc, char** argv){
 
   Device* transmitter = nullptr;
   Device* receiver = nullptr;
+  SPI_HAL_PinManager* SPI_HAL_pinManager = nullptr;
   std::vector<HAL_Pin*> logicAnalyzerPins;
 
   switch (protocol){
@@ -121,10 +122,9 @@ int main(int argc, char** argv){
     break;
 
   case Protocol::SPI:
-    SPI_HAL_init();
-
-    transmitter = new SPIDevice("SPI_Transmitter", SPI_Role::SPI_MASTER);
-    receiver = new SPIDevice("SPI_Receiver", SPI_Role::SPI_SLAVE);
+    SPI_HAL_pinManager = new SPI_HAL_PinManager();
+    transmitter = new SPIDevice("SPI_Transmitter", SPI_Role::SPI_MASTER, SPI_HAL_pinManager);
+    receiver = new SPIDevice("SPI_Receiver", SPI_Role::SPI_SLAVE, SPI_HAL_pinManager);
     break;
 
   default:

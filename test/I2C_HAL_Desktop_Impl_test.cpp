@@ -11,6 +11,7 @@ class I2C_HALTest : public testing::Test {
     HAL_Pin* sclInPin;
 
     void SetUp() override {
+      I2C_HAL_init();
       sclOutPin = HAL_pinSetup(HAL_PinRole::SCL_OUT);
       sclInPin = HAL_pinSetup(HAL_PinRole::SCL_IN);
     }
