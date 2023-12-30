@@ -37,6 +37,10 @@ class SPI_Test : public testing::Test {
     }
 };
 
+int getBit(int byte, int bit){
+  return (byte & (1 << bit)) >> bit;
+}
+
 TEST_F(SPI_Test, basicConfigurationTest){
   SPI_Config* config = transmitterDevice->getConfig();
 
@@ -44,9 +48,14 @@ TEST_F(SPI_Test, basicConfigurationTest){
 }
 
 TEST_F(SPI_Test, sendByteTest){
+  EXPECT_EQ(getBit(receiverDevice->getConfig()->SPISR, SPIF), 0);
+
   receiverDevice->getConfig()->SPIDR = 55;
   transmitterDevice->sendByte(22, receiverDevice->getName());
 
+
   EXPECT_EQ((int) receiverDevice->getConfig()->SPIDR, 22);
   EXPECT_EQ((int) transmitterDevice->getConfig()->SPIDR, 55);
+
+  EXPECT_EQ(getBit(receiverDevice->getConfig()->SPISR, SPIF), 1);
 }
