@@ -19,6 +19,10 @@ add_subdirectory(src/common)
 if(TARGET_PLATFORM STREQUAL "DESKTOP" OR NOT DEFINED TARGET_PLATFORM)
   set(TARGET_PLATFORM "DESKTOP")
   message("Building for desktop")
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+
   add_subdirectory(src/desktop)
   add_subdirectory(test)
 elseif(TARGET_PLATFORM STREQUAL "AVR")

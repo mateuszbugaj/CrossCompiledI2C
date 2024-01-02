@@ -6,13 +6,11 @@
 extern "C" {
   #include <SPI.h>
   #include <SPI_HAL.h>
+
+    #include <SPI_console.h>
 }
 
 #include <SPI_HAL_DESKTOP.hpp>
-
-#define PIN_STATE_FILE "output/pins.log"
-#define TRANSMITTER_LOG_FILE "output/master.log"
-#define RECEIVER_LOG_FILE "output/slave.log"
 
 class SPIDevice : public Device {
   private:

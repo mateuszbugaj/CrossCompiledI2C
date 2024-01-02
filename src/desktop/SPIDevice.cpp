@@ -46,18 +46,17 @@ SPIDevice::SPIDevice(std::string name, SPI_Role role, SPI_HAL_PinManager* pinMan
 
 void SPIDevice::executionThreadFunction(){
   while(isRunning){
-    if(SPI_config.role == SPI_SLAVE){
-      SPI_read(&SPI_config);
-    }
-
     if(!instructions.empty()){
-      transmissionRunning = true;
       std::string instruction = instructions.front();
       instructions.pop();
 
-      std::cout << "Consumed: " << instruction << std::endl;
-      
+      transmissionRunning = true;
+      common_SPI_consoleParse(&SPI_config, instruction.c_str());      
       transmissionRunning = false;
+    }
+
+    if(SPI_config.role == SPI_SLAVE){
+      SPI_read(&SPI_config);
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -104,7 +103,7 @@ static void printStr(SPI_Role role, char str[]){
 }
 
 static void printNum(SPI_Role role, uint16_t num){
-  printToFile(std::bitset<8>(num).to_string(), role);
+  printToFile(std::to_string(num), role);
 
   std::string colorCode = role == SPI_Role::SPI_MASTER ? "\033[31m" : "\033[32m";
   std::cout << colorCode << int(num) << " (" << std::bitset<8>(num) << ")" << "\033[0m";
@@ -119,9 +118,16 @@ void SPIDevice::addSlaveDevice(SPIDevice* slave){
 
   std::cout << slaveName << " added as slave to " << this->getName() << '\n';
   slaveDevices[slaveName] = slave;
+
+  SPI_addSSPin(&SPI_config, slave->getConfig()->SS);
 }
 
 void SPIDevice::sendByte(uint8_t byte, std::string receiverName){
+  if(SPI_config.role == SPI_SLAVE){
+    SPI_send(&SPI_config, byte, NULL);
+    return;
+  }
+
   SPIDevice* receiver = slaveDevices[receiverName];
 
   if(receiver == nullptr){

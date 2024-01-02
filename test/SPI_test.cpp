@@ -48,14 +48,18 @@ TEST_F(SPI_Test, basicConfigurationTest){
 }
 
 TEST_F(SPI_Test, sendByteTest){
-  EXPECT_EQ(getBit(receiverDevice->getConfig()->SPISR, SPIF), 0);
+  EXPECT_EQ(getBit(receiverDevice->getConfig()->SPISR, SPI_SPIF), 0);
+  EXPECT_EQ(getBit(transmitterDevice->getConfig()->SPISR, SPI_SPIF), 0);
 
-  receiverDevice->getConfig()->SPIDR = 55;
-  transmitterDevice->sendByte(22, receiverDevice->getName());
+  uint8_t receiverPayload = 55;
+  uint8_t transmitterPayload = 22;
 
+  receiverDevice->sendByte(receiverPayload, "");
+  transmitterDevice->sendByte(transmitterPayload, receiverDevice->getName());
 
-  EXPECT_EQ((int) receiverDevice->getConfig()->SPIDR, 22);
-  EXPECT_EQ((int) transmitterDevice->getConfig()->SPIDR, 55);
+  EXPECT_EQ(getBit(receiverDevice->getConfig()->SPISR, SPI_SPIF), 1);
+  EXPECT_EQ(getBit(transmitterDevice->getConfig()->SPISR, SPI_SPIF), 1);
 
-  EXPECT_EQ(getBit(receiverDevice->getConfig()->SPISR, SPIF), 1);
+  EXPECT_EQ((int) receiverDevice->getConfig()->SPIDR, transmitterPayload);
+  EXPECT_EQ((int) transmitterDevice->getConfig()->SPIDR, receiverPayload);
 }

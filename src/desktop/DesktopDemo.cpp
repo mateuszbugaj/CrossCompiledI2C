@@ -7,6 +7,8 @@
 #include <string.h>
 #include <fstream>
 
+#include <LogicAnalyzerProbe.hpp>
+#include <Device.hpp>
 #include <I2CDevice.hpp>
 #include <SPIDevice.hpp>
 
@@ -98,7 +100,6 @@ int main(int argc, char** argv){
   Device* transmitter = nullptr;
   Device* receiver = nullptr;
   SPI_HAL_PinManager* SPI_HAL_pinManager = nullptr;
-  std::vector<HAL_Pin*> logicAnalyzerPins;
 
   switch (protocol){
   case Protocol::I2C:
@@ -108,58 +109,41 @@ int main(int argc, char** argv){
     transmitter = new I2CDevice("I2C_Transmitter", TRANSMITTER_ADDRESS, I2C_Role::MASTER);
     receiver = new I2CDevice("I2C_Receiver", RECEIVER_ADDRESS, I2C_Role::SLAVE);
 
-    logicAnalyzerPins.insert(logicAnalyzerPins.end(), {
+    static LogicAnalyzerProbe<HAL_Pin, HAL_PinLevel> logicAnalyzerProbeI2C({transmitter, receiver}, {
       HAL_SclPin(), 
       HAL_SdaPin(), 
       ((I2CDevice*) transmitter)->getConfig().sdaOutPin, 
       ((I2CDevice*) transmitter)->getConfig().sclOutPin, 
       ((I2CDevice*) receiver)->getConfig().sdaOutPin,
       ((I2CDevice*) receiver)->getConfig().sclOutPin
-    });
+    }, HAL_pinRead);
 
-    logicAnalyzerPins.push_back(HAL_SclPin());
-    logicAnalyzerPins.push_back(HAL_SdaPin());
     break;
 
   case Protocol::SPI:
     SPI_HAL_pinManager = new SPI_HAL_PinManager();
+    SPI_HAL_setPinManager(SPI_HAL_pinManager);
+
+    common_SPI_consoleInit(consolePrint);
     transmitter = new SPIDevice("SPI_Transmitter", SPI_Role::SPI_MASTER, SPI_HAL_pinManager);
     receiver = new SPIDevice("SPI_Receiver", SPI_Role::SPI_SLAVE, SPI_HAL_pinManager);
+
+    static LogicAnalyzerProbe<SPI_HAL_Pin, SPI_HAL_PinLevel> logicAnalyzerProbeSPI({transmitter, receiver}, {
+      SPI_HAL_pinManager->mosiPin, 
+      SPI_HAL_pinManager->misoPin, 
+      SPI_HAL_pinManager->sckPin
+    }, SPI_HAL_pinRead);
+
+    ((SPIDevice*) transmitter)->addSlaveDevice((SPIDevice*) receiver);
     break;
 
   default:
     break;
   }
 
-  std::thread logicAnalyzerProbeThread([&transmitter, &receiver, &logicAnalyzerPins](){
-    std::string filename = PIN_STATE_FILE;
-    while(true){
-      if(transmitter->isTransmissionRunning()){
-        std::ofstream ofs(filename, std::ios::app);
-        if(ofs.is_open()){
-          for(HAL_Pin* pin : logicAnalyzerPins){
-            ofs << HAL_pinRead(pin) << " ";
-          }
-          ofs << std::endl;
-
-          ofs.close();
-        } else {
-          std::cout << "Unable to open file for writing log\n";
-        }
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-      }
-    }
-  });
-
   std::thread userInputThread([&](){
     userInputThreadFunction(*transmitter, *receiver);
   });
-
-
-  if (logicAnalyzerProbeThread.joinable()){
-    logicAnalyzerProbeThread.join();
-  }
 
   if (userInputThread.joinable()) {
     userInputThread.join();

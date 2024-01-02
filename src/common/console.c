@@ -8,7 +8,7 @@
 #define NEW_LINE "\n\r"
 #endif
 
-void (*console_print)(char*) = 0;
+static void (*console_print)(char*) = 0;
 typedef void (*CommandHandler)(I2C_Config* cfg, const char*);
 
 typedef struct {
@@ -16,12 +16,33 @@ typedef struct {
   CommandHandler handler;
 } Command;
 
-void handleGetRole(I2C_Config* i2c_cfg,  char* args) {
+static void getArg(const char* args, char* arg, int argNum) {
+  int charNum = 0;
+  int argCount = 0;
+  int argCharNum = 0;
+
+  while(args[charNum] != '\0'){
+    if(argCount == argNum && args[charNum] != ' '){
+      arg[argCharNum] = args[charNum];
+      argCharNum++;
+    }
+
+    if(args[charNum] == ' '){
+      argCount++;
+    }
+
+    charNum++;
+  }
+
+  arg[argCharNum] = '\0';
+}
+
+static void handleGetRole(I2C_Config* i2c_cfg,  char* args) {
   console_print(i2c_cfg->role == MASTER ? "MASTER" : "SLAVE");
   console_print(NEW_LINE);
 }
 
-void handleSetRole(I2C_Config* i2c_cfg, const char* args) {
+static void handleSetRole(I2C_Config* i2c_cfg, const char* args) {
   char role[10];
   getArg(args, role, 0);
   if (strcmp(role, "master") == 0) {
@@ -108,7 +129,7 @@ void handleSetSda(I2C_Config* i2c_cfg, const char* args){
   HAL_pinWrite(i2c_cfg->sclOutPin, sdaLevel == 0 ? LOW : HIGH);
 }
 
-Command getCommandTable[] = {
+static Command getCommandTable[] = {
   {"role", handleGetRole},
   {"address", handleGetAddress},
   {"time_unit", handleGetTimeUnit},
@@ -117,7 +138,7 @@ Command getCommandTable[] = {
   {"sda", handleGetSdaLevel}
 };
 
-Command setCommandTable[] = {
+static Command setCommandTable[] = {
   {"role", handleSetRole},
   {"address", handleSetAddr},
   {"time_unit", handleSetTimeUnit},
@@ -187,7 +208,7 @@ void handleWriteToCondition(I2C_Config* i2c_cfg, const char* args) {
   I2C_sendStopCondition(i2c_cfg);
 }
 
-Command writeCommandTable[] = {
+static Command writeCommandTable[] = {
   {"byte", handleWriteByte},
   {"addr", handleWriteAddress},
   {"start", handleWriteStartCondition},
@@ -197,27 +218,6 @@ Command writeCommandTable[] = {
 
 void console_init(void (*print)(char*)){
   console_print = print;
-}
-
-void getArg(const char* args, char* arg, int argNum) {
-  int charNum = 0;
-  int argCount = 0;
-  int argCharNum = 0;
-
-  while(args[charNum] != '\0'){
-    if(argCount == argNum && args[charNum] != ' '){
-      arg[argCharNum] = args[charNum];
-      argCharNum++;
-    }
-
-    if(args[charNum] == ' '){
-      argCount++;
-    }
-
-    charNum++;
-  }
-
-  arg[argCharNum] = '\0';
 }
 
 void console_parse(I2C_Config* cfg, const char* instruction) {
@@ -249,8 +249,8 @@ void console_parse(I2C_Config* cfg, const char* instruction) {
 
 #ifdef DESKTOP
       // TODO: This is a hack
-      // commandTable[i].handler(cfg, instruction + strlen(command) + 2);
-      commandTable[i].handler(cfg, instruction + strlen(command) + strlen(arg1) + 2);
+      commandTable[i].handler(cfg, instruction + strlen(command) + 2);
+      // commandTable[i].handler(cfg, instruction + strlen(command) + strlen(arg1) + 2);
 #else
       commandTable[i].handler(cfg, instruction + strlen(command) + strlen(arg1) + 2);
 #endif

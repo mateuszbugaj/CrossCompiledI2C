@@ -9,10 +9,6 @@ extern "C" {
   #include <console.h>
 }
 
-#define PIN_STATE_FILE "output/pins.log"
-#define TRANSMITTER_LOG_FILE "output/master.log"
-#define RECEIVER_LOG_FILE "output/slave.log"
-
 class I2CDevice : public Device {
   private:
     I2C_Config I2C_config;
